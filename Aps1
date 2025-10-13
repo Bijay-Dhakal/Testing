@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Location Tracker</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px;
+        }
+        .container {
+            background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px; max-width: 500px; width: 100%;
+        }
+        h1 { color: #333; margin-bottom: 10px; font-size: 28px; }
+        .subtitle { color: #666; margin-bottom: 30px; font-size: 14px; }
+        .status {
+            padding: 15px; border-radius: 10px; margin-bottom: 20px; font-size: 14px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .status.info { background: #e3f2fd; color: #1976d2; }
+        .status.success { background: #e8f5e9; color: #388e3c; }
+        .status.error { background: #ffebee; color: #d32f2f; }
+        .status.warning { background: #fff3e0; color: #f57c00; }
+        .status-icon { width: 20px; height: 20px; border-radius: 50%; display: inline-block; }
+        .status.info .status-icon { background: #1976d2; }
+        .status.success .status-icon { background: #388e3c; animation: pulse 2s infinite; }
+        .status.error .status-icon { background: #d32f2f; }
+        .status.warning .status-icon { background: #f57c00; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .location-info {
+            background: #f5f5f5; border-radius: 10px; padding: 20px; margin-bottom: 20px;
+        }
+        .location-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e0e0e0; }
+        .location-item:last-child { border-bottom: none; }
+        .location-label { color: #666; font-weight: 500; }
+        .location-value { color: #333; font-family: monospace; }
+        button {
+            width: 100%; padding: 15px; border: none; border-radius: 10px;
+            font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-bottom: 10px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px); box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        .btn-secondary { background: #e0e0e0; color: #333; }
+        .btn-secondary:hover { background: #d0d0d0; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .hidden { display: none; }
+        .map-link { color: #667eea; text-decoration: none; font-size: 14px; display: inline-block; margin-top: 10px; }
+        .map-link:hover { text-decoration: underline; }
+        .permission-help {
+            background: #fff3e0; border-left: 4px solid #f57c00;
+            padding: 15px; margin-bottom: 20px; border-radius: 5px; font-size: 13px; line-height: 1.6;
+        }
+        .permission-help strong { display: block; margin-bottom: 8px; color: #e65100; }
+        .permission-help ol { margin-left: 20px; margin-top: 8px; }
+        .permission-help li { margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📍 Location Tracker</h1>
+        <p class="subtitle">Track and save your location to Firebase</p>
+
+        <div id="statusMessage" class="status info">
+            <span class="status-icon"></span>
+            <span>Click "Start Tracking" to begin</span>
+        </div>
+
+        <div id="permissionHelp" class="permission-help hidden">
+            <strong>⚠️ Location Permission Required</strong>
+            <p>To enable location tracking:</p>
+            <ol>
+                <li>Click the 🔒 icon in your browser’s address bar</li>
+                <li>Select “Allow” for location access</li>
+                <li>If blocked, go to Settings → Site Settings → Location</li>
+                <li>Refresh this page and click “Start Tracking” again</li>
+            </ol>
+        </div>
+
+        <div id="locationInfo" class="location-info hidden">
+            <div class="location-item">
+                <span class="location-label">Latitude:</span>
+                <span class="location-value" id="latitude">--</span>
+            </div>
+            <div class="location-item">
+                <span class="location-label">Longitude:</span>
+                <span class="location-value" id="longitude">--</span>
+            </div>
+            <div class="location-item">
+                <span class="location-label">Accuracy:</span>
+                <span class="location-value" id="accuracy">--</span>
+            </div>
+            <div class="location-item">
+                <span class="location-label">Last Update:</span>
+                <span class="location-value" id="timestamp">--</span>
+            </div>
+            <a id="mapLink" href="#" target="_blank" class="map-link hidden">View on Google Maps 🗺️</a>
+        </div>
+
+        <button id="startBtn" class="btn-primary">Start Tracking</button>
+        <button id="stopBtn" class="btn-secondary hidden">Stop Tracking</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, set, push } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCcxey-o7jqOVIp8ZKedhagv3_OaHGISK0",
+            databaseURL: "https://bijju-chat-default-rtdb.firebaseio.com",
+            appId: "1:773346323727:android:dc03cbd17371b9140fa27a"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        let watchId = null;
+        let isTracking = false;
+
+        const statusMessage = document.getElementById('statusMessage');
+        const locationInfo = document.getElementById('locationInfo');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const latitudeEl = document.getElementById('latitude');
+        const longitudeEl = document.getElementById('longitude');
+        const accuracyEl = document.getElementById('accuracy');
+        const timestampEl = document.getElementById('timestamp');
+        const mapLink = document.getElementById('mapLink');
+        const permissionHelp = document.getElementById('permissionHelp');
+
+        function updateStatus(message, type = 'info') {
+            statusMessage.className = `status ${type}`;
+            statusMessage.innerHTML = `<span class="status-icon"></span><span>${message}</span>`;
+        }
+
+        function updateLocationDisplay(position) {
+            const lat = position.coords.latitude.toFixed(6);
+            const lon = position.coords.longitude.toFixed(6);
+            const acc = position.coords.accuracy.toFixed(2);
+            const time = new Date().toLocaleTimeString();
+
+            latitudeEl.textContent = lat;
+            longitudeEl.textContent = lon;
+            accuracyEl.textContent = `${acc} meters`;
+            timestampEl.textContent = time;
+
+            locationInfo.classList.remove('hidden');
+            mapLink.href = `https://www.google.com/maps?q=${lat},${lon}`;
+            mapLink.classList.remove('hidden');
+        }
+
+        function sendLocationToFirebase(position) {
+            const locationData = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                timestamp: new Date().toISOString(),
+                timestampMs: Date.now()
+            };
+
+            const locationsRef = ref(database, 'locations');
+            const newLocationRef = push(locationsRef);
+            
+            set(newLocationRef, locationData)
+                .then(() => {
+                    updateStatus('📍 Location tracking active - Sent to Firebase', 'success');
+                    updateLocationDisplay(position);
+                })
+                .catch((error) => {
+                    updateStatus(`Firebase error: ${error.message}`, 'error');
+                    console.error('Firebase error:', error);
+                });
+        }
+
+        function handleLocationSuccess(position) {
+            permissionHelp.classList.add('hidden');
+            sendLocationToFirebase(position);
+        }
+
+        function handleLocationError(error) {
+            let message = '';
+            switch(error.code) {
+                case 1:
+                    message = '❌ Location permission denied. Please allow location access.';
+                    permissionHelp.classList.remove('hidden');
+                    break;
+                case 2:
+                    message = '⚠️ Location unavailable. Ensure GPS is on.';
+                    permissionHelp.classList.remove('hidden');
+                    break;
+                case 3:
+                    message = '⏱️ Location request timed out.';
+                    break;
+                default:
+                    message = `❌ Error: ${error.message}`;
+            }
+            updateStatus(message, 'error');
+            if (error.code === 1 && watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+                isTracking = false;
+                startBtn.classList.remove('hidden');
+                stopBtn.classList.add('hidden');
+                startBtn.disabled = false;
+            }
+        }
+
+        async function checkPermissionStatus() {
+            if ('permissions' in navigator) {
+                try {
+                    const result = await navigator.permissions.query({ name: 'geolocation' });
+                    console.log('Permission status:', result.state);
+
+                    if (result.state === 'denied') {
+                        updateStatus('⚠️ Location access blocked. Enable it in browser settings.', 'warning');
+                        permissionHelp.classList.remove('hidden');
+                    } else if (result.state === 'prompt') {
+                        updateStatus('📢 Click "Start Tracking" and allow location when prompted.', 'info');
+                        permissionHelp.classList.add('hidden');
+                    } else if (result.state === 'granted') {
+                        updateStatus('✅ Location access already granted.', 'success');
+                        permissionHelp.classList.add('hidden');
+                    }
+
+                    // React to permission changes dynamically
+                    result.onchange = () => {
+                        console.log('Permission changed to', result.state);
+                        checkPermissionStatus();
+                    };
+
+                    return result.state;
+                } catch (error) {
+                    console.log('Permission API not supported:', error);
+                }
+            }
+            return null;
+        }
+
+        startBtn.addEventListener('click', async () => {
+            if (!navigator.geolocation) {
+                updateStatus('❌ Geolocation not supported by your browser', 'error');
+                return;
+            }
+
+            await checkPermissionStatus();
+            startBtn.disabled = true;
+            updateStatus('🔄 Requesting location access...', 'info');
+
+            const options = { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 };
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    handleLocationSuccess(position);
+                    watchId = navigator.geolocation.watchPosition(
+                        handleLocationSuccess, handleLocationError, options
+                    );
+                    isTracking = true;
+                    startBtn.classList.add('hidden');
+                    stopBtn.classList.remove('hidden');
+                    startBtn.disabled = false;
+                },
+                (error) => {
+                    handleLocationError(error);
+                    startBtn.disabled = false;
+                },
+                options
+            );
+        });
+
+        stopBtn.addEventListener('click', () => {
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+            isTracking = false;
+            updateStatus('⏸️ Tracking stopped', 'info');
+            startBtn.classList.remove('hidden');
+            stopBtn.classList.add('hidden');
+            permissionHelp.classList.add('hidden');
+        });
+
+        window.addEventListener('load', () => checkPermissionStatus());
+    </script>
+</body>
+</html>
